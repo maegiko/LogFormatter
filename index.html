@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Log Formatter</title>
+    <script src="./script.js" defer></script>
+    <link rel="stylesheet" href="./style.css" />
+  </head>
+  <body>
+    <div class="main-container">
+      <p class="built-by-text">Built by Maegiko</p>
+      <h1>Log Formatter</h1>
+      <p>
+        Upload a plain-text `.txt` or `.log` file to sort Minecraft and mod
+        development logs by category or collapse repeated lines into easier-to-read groups.
+      </p>
+      <input type="file" id="file-input" accept=".txt,.log,text/plain" />
+      <div class="format-buttons">
+        <button id="group-by-category">Group by Category</button>
+        <button id="fold-repeated-lines">Fold Repeated Lines</button>
+      </div>
+      <p id="no-file-uploaded-text">No file uploaded. Please try again.</p>
+      <div class="content-container"></div>
+    </div>
+  </body>
+</html>
