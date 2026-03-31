@@ -802,6 +802,8 @@ function parseNumericList(text) {
   return matches ? matches.map(Number) : [];
 }
 
+const scrollToTopButton = document.getElementById("scroll-to-top-button");
+
 /**
  * Handle the "Group by Category" action for the currently selected log file.
  *
@@ -853,6 +855,35 @@ document.getElementById("file-input").addEventListener("change", (event) => {
 
   hideUploadMessage();
 });
+
+/**
+ * Toggle the visibility of the scroll-to-top button based on scroll position.
+ *
+ * @returns {void}
+ */
+const updateScrollToTopButtonVisibility = () => {
+  if (window.scrollY > 200) {
+    scrollToTopButton.classList.add("is-visible");
+    return;
+  }
+
+  scrollToTopButton.classList.remove("is-visible");
+};
+
+/**
+ * Smoothly scroll the window back to the top of the page.
+ *
+ * @returns {void}
+ */
+const scrollToTop = () => {
+  window.scrollTo({
+    top: 0,
+    behavior: "smooth",
+  });
+};
+
+window.addEventListener("scroll", updateScrollToTopButtonVisibility);
+scrollToTopButton.addEventListener("click", scrollToTop);
 
 /**
  * Read the selected file, validate it, and parse it into log objects.

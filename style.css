@@ -165,6 +165,47 @@ p {
   font-weight: 500;
 }
 
+#scroll-to-top-button {
+  position: fixed;
+  right: 22px;
+  bottom: 22px;
+  z-index: 100;
+  width: 48px;
+  height: 48px;
+  border: 1px solid rgba(89, 62, 35, 0.2);
+  border-radius: 999px;
+  background:
+    linear-gradient(180deg, rgba(255, 255, 255, 0.9), rgba(243, 235, 225, 0.98));
+  color: var(--heading);
+  font: inherit;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 12px 28px rgba(70, 64, 58, 0.14);
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(10px);
+  transition: opacity 160ms ease, transform 160ms ease, box-shadow 160ms ease, filter 160ms ease;
+}
+
+#scroll-to-top-button:hover {
+  box-shadow: 0 16px 32px rgba(70, 64, 58, 0.18);
+  filter: brightness(0.99);
+}
+
+#scroll-to-top-button svg {
+  width: 22px;
+  height: 22px;
+  stroke-width: 2;
+}
+
+#scroll-to-top-button.is-visible {
+  opacity: 1;
+  pointer-events: auto;
+  transform: translateY(0);
+}
+
 .content-container {
   display: grid;
   gap: 18px;
@@ -451,6 +492,13 @@ p {
     font-size: 0.95rem;
   }
 
+  #scroll-to-top-button {
+    right: 16px;
+    bottom: 16px;
+    width: 44px;
+    height: 44px;
+  }
+
   .log-raw {
     padding: 12px 13px;
     font-size: 0.78rem;
@@ -511,5 +559,10 @@ p {
   .log-raw {
     margin-top: 12px;
     border-radius: 8px;
+  }
+
+  #scroll-to-top-button {
+    right: 12px;
+    bottom: 12px;
   }
 }
