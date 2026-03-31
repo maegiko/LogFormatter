@@ -803,6 +803,14 @@ function parseNumericList(text) {
 }
 
 const scrollToTopButton = document.getElementById("scroll-to-top-button");
+const customRulesPanel = document.getElementById("custom-rules-panel");
+const ruleActionSelect = document.getElementById("rule-action");
+const ruleKeywordField = document.getElementById("rule-keyword-field");
+const ruleNumberIndexField = document.getElementById("rule-number-index-field");
+const customRuleActionHelp = document.getElementById("custom-rule-action-help");
+const ruleMatchValueInput = document.getElementById("rule-match-value");
+const ruleActionValueInput = document.getElementById("rule-action-value");
+const ruleNumberIndexSelect = document.getElementById("rule-number-index");
 
 /**
  * Handle the "Group by Category" action for the currently selected log file.
@@ -833,6 +841,73 @@ document.getElementById("fold-repeated-lines").addEventListener("click", async (
   const foldedLogs = foldRepeatedLogs(parsedLogs);
   createFoldedDisplay(foldedLogs);
 });
+
+/**
+ * Toggle the custom display rules panel.
+ *
+ * @returns {void}
+ */
+document.getElementById("custom-display-rules").addEventListener("click", () => {
+  const isHidden = customRulesPanel.hasAttribute("hidden");
+
+  if (isHidden) {
+    customRulesPanel.removeAttribute("hidden");
+    updateCustomRuleFields();
+    return;
+  }
+
+  customRulesPanel.setAttribute("hidden", "");
+});
+
+/**
+ * Update the rule form inputs based on the selected rule action.
+ *
+ * @returns {void}
+ */
+const updateCustomRuleFields = () => {
+  const action = ruleActionSelect.value;
+  const isTrimRule = action === "trim-before";
+
+  ruleKeywordField.hidden = !isTrimRule;
+  ruleNumberIndexField.hidden = isTrimRule;
+  ruleActionValueInput.disabled = !isTrimRule;
+  ruleNumberIndexSelect.disabled = isTrimRule;
+
+  if (isTrimRule) {
+    customRuleActionHelp.textContent =
+      "Keep the important part of a matching line by trimming away the prefix before a keyword.";
+    ruleMatchValueInput.placeholder = "e.g. [STDOUT]:";
+    ruleActionValueInput.placeholder = "e.g. [STDOUT]:";
+    return;
+  }
+
+  customRuleActionHelp.textContent =
+    "From matching lines, keep only the entry with the lowest value and the entry with the highest value.";
+  ruleMatchValueInput.placeholder = "e.g. getHeight:";
+};
+
+/**
+ * Apply the configured custom display rule to the selected file and render the result.
+ *
+ * @returns {void}
+ */
+document.getElementById("apply-custom-rule").addEventListener("click", async () => {
+  const parsedLogs = await loadSelectedLogFile();
+  if (!parsedLogs) {
+    return;
+  }
+
+  const rule = getCustomRuleInput();
+  if (!rule) {
+    return;
+  }
+
+  const results = applyCustomRule(parsedLogs, rule);
+  createCustomRuleDisplay(rule, results);
+});
+
+ruleActionSelect.addEventListener("change", updateCustomRuleFields);
+updateCustomRuleFields();
 
 /**
  * Validate the chosen file as soon as the file input changes.
@@ -911,6 +986,159 @@ const loadSelectedLogFile = async () => {
 };
 
 /**
+ * Read the current custom rule form and convert it into a usable rule object.
+ *
+ * @returns {object | null} Normalized rule object, or `null` if required fields are missing.
+ */
+const getCustomRuleInput = () => {
+  const matchValue = ruleMatchValueInput.value.trim();
+  const action = ruleActionSelect.value;
+  const actionValue = ruleActionValueInput.value.trim();
+  const numberIndex = Number(ruleNumberIndexSelect.value);
+
+  if (!matchValue) {
+    showUploadMessage("Please enter text to match before applying a custom rule.");
+    return null;
+  }
+
+  if (action === "trim-before" && !actionValue) {
+    showUploadMessage("Please enter the keyword to trim from.");
+    return null;
+  }
+
+  hideUploadMessage();
+
+  return {
+    matchValue,
+    action,
+    actionValue,
+    numberIndex,
+  };
+};
+
+/**
+ * Apply a custom display rule to parsed logs.
+ *
+ * @param {object[]} parsedLogs - Parsed log entries.
+ * @param {{ matchValue: string, action: string, actionValue: string, numberIndex: number }} rule - Rule definition.
+ * @returns {object[]} Transformed rule result entries.
+ */
+const applyCustomRule = (parsedLogs, rule) => {
+  const matchingLogs = parsedLogs.filter((log) => logMatchesRule(log, rule.matchValue));
+
+  if (rule.action === "trim-before") {
+    return matchingLogs
+      .map((log) => transformLogTrimBefore(log, rule.actionValue))
+      .filter(Boolean);
+  }
+
+  if (rule.action === "show-min-max") {
+    return transformLogsMinMax(matchingLogs, rule.numberIndex);
+  }
+
+  return [];
+};
+
+/**
+ * Check whether a parsed log matches the provided custom rule text.
+ *
+ * @param {object} log - Parsed log object.
+ * @param {string} matchValue - Text that should appear in the log.
+ * @returns {boolean} `true` if the log matches the rule text.
+ */
+const logMatchesRule = (log, matchValue) => {
+  const searchableText = [log.raw, log.message, log.summary]
+    .filter(Boolean)
+    .join("\n")
+    .toLowerCase();
+
+  return searchableText.includes(matchValue.toLowerCase());
+};
+
+/**
+ * Transform a log by trimming everything before a keyword.
+ *
+ * @param {object} log - Parsed log object.
+ * @param {string} keyword - Keyword to trim from.
+ * @returns {object | null} Transformed result object, or `null` if the keyword is not found.
+ */
+const transformLogTrimBefore = (log, keyword) => {
+  const sources = [log.raw, log.message].filter(Boolean);
+
+  for (const source of sources) {
+    const keywordIndex = source.indexOf(keyword);
+    if (keywordIndex === -1) {
+      continue;
+    }
+
+    const trimmed = source.slice(keywordIndex + keyword.length).trim();
+    return {
+      type: "trim-before-result",
+      title: trimmed || keyword,
+      subtitle: log.summary || log.message || log.raw,
+      raw: log.raw || log.message || "",
+      category: log.category,
+      timestamp: log.timestamp,
+      logger: log.logger,
+      thread: log.thread,
+      lineStart: log.lineStart,
+      lineEnd: log.lineEnd,
+    };
+  }
+
+  return null;
+};
+
+/**
+ * Keep only the minimum and maximum matching logs based on one extracted numeric value.
+ *
+ * @param {object[]} logs - Matching parsed log entries.
+ * @param {number} numberIndex - Zero-based numeric index to compare.
+ * @returns {object[]} Min/max result entries.
+ */
+const transformLogsMinMax = (logs, numberIndex) => {
+  const withNumbers = logs
+    .map((log) => {
+      const values = parseNumericList(log.message || log.raw || "");
+      return {
+        log,
+        compareValue: values[numberIndex],
+      };
+    })
+    .filter((entry) => Number.isFinite(entry.compareValue));
+
+  if (withNumbers.length === 0) {
+    return [];
+  }
+
+  const sorted = [...withNumbers].sort((a, b) => a.compareValue - b.compareValue);
+  const minEntry = sorted[0];
+  const maxEntry = sorted[sorted.length - 1];
+  const entries =
+    minEntry.log === maxEntry.log
+      ? [{ ...minEntry, resultLabel: "Minimum / Maximum" }]
+      : [
+          { ...minEntry, resultLabel: "Minimum" },
+          { ...maxEntry, resultLabel: "Maximum" },
+        ];
+
+  return entries.map((entry) => ({
+    type: "min-max-result",
+    title: entry.log.summary || entry.log.message || entry.log.raw,
+    subtitle: `${entry.resultLabel}: ${entry.compareValue}`,
+    raw: entry.log.raw || entry.log.message || "",
+    category: entry.log.category,
+    timestamp: entry.log.timestamp,
+    logger: entry.log.logger,
+    thread: entry.log.thread,
+    lineStart: entry.log.lineStart,
+    lineEnd: entry.log.lineEnd,
+    compareValue: entry.compareValue,
+    resultLabel: entry.resultLabel,
+  }));
+};
+
+/**
  * Check whether an uploaded file looks like a supported plain-text log file.
  *
  * @param {File} file - Uploaded browser file object.
@@ -979,6 +1207,66 @@ const createDisplay = (sortedLogs) => {
   Object.entries(sortedLogs).forEach(([category, logs]) => {
     display.append(createCategorySection(category, logs));
   });
+};
+
+/**
+ * Render the custom-rule output into the main content container.
+ *
+ * @param {{ matchValue: string, action: string }} rule - Applied rule definition.
+ * @param {object[]} results - Transformed rule results.
+ * @returns {void}
+ */
+const createCustomRuleDisplay = (rule, results) => {
+  const display = document.querySelector(".content-container");
+  display.textContent = "";
+
+  const section = createHtmlElement("section", "log-container");
+  const header = createHtmlElement("div", "category-container");
+  const title = createHtmlElement(
+    "span",
+    "category-label",
+    `Custom Rule: ${formatCustomRuleTitle(rule)}`
+  );
+  const count = createHtmlElement(
+    "span",
+    "log-category-chip",
+    `${results.length} result${results.length === 1 ? "" : "s"}`
+  );
+  const listings = createHtmlElement("ul", "listing-container");
+
+  header.append(title, count);
+  section.append(header, listings);
+
+  if (results.length === 0) {
+    const emptyState = createHtmlElement(
+      "p",
+      "custom-rule-empty",
+      "No matching log lines were found for this rule."
+    );
+    section.append(emptyState);
+    display.append(section);
+    return;
+  }
+
+  results.forEach((result) => {
+    listings.append(createCustomRuleListing(result));
+  });
+
+  display.append(section);
+};
+
+/**
+ * Build a short readable title for the active custom rule.
+ *
+ * @param {{ matchValue: string, action: string, actionValue?: string }} rule - Applied rule definition.
+ * @returns {string} Human-readable rule title.
+ */
+const formatCustomRuleTitle = (rule) => {
+  if (rule.action === "trim-before") {
+    return `trim before "${rule.actionValue}" on lines containing "${rule.matchValue}"`;
+  }
+
+  return `show min/max for lines containing "${rule.matchValue}"`;
 };
 
 /**
@@ -1115,9 +1403,15 @@ const createCategorySection = (category, logs) => {
  */
 const createLogListing = (log) => {
   const listing = createHtmlElement("li", "log-listing");
+  const header = createHtmlElement("div", "log-folded-header");
   const primaryRow = createHtmlElement("div", "log-primary-row");
   const secondaryRow = createHtmlElement("div", "log-secondary-row");
+  const arrowIcon = createArrowSvg();
   const rawMessage = createHtmlElement("pre", "log-raw", log.raw || log.message || "");
+
+  rawMessage.style.display = "none";
+  arrowIcon.classList.add("category-toggle");
+  arrowIcon.style.transform = "rotate(-90deg)";
 
   const timestamp = createHtmlElement("span", "log-timestamp", log.timestamp || "No time");
   const level = createHtmlElement("span", "log-level", log.level || log.category || "unknown");
@@ -1191,7 +1485,81 @@ const createLogListing = (log) => {
     secondaryRow.append(createHtmlElement("span", "log-line-range", lineLabel));
   }
 
-  listing.append(primaryRow, secondaryRow, rawMessage);
+  header.append(primaryRow, arrowIcon);
+  listing.append(header, secondaryRow, rawMessage);
+
+  const toggleListing = () => {
+    const isHidden = rawMessage.style.display === "none";
+    rawMessage.style.display = isHidden ? "block" : "none";
+    arrowIcon.style.transform = isHidden ? "rotate(0deg)" : "rotate(-90deg)";
+  };
+
+  header.style.cursor = "pointer";
+  header.addEventListener("click", toggleListing);
+
+  return listing;
+};
+
+/**
+ * Create a rendered list item for a custom-rule result.
+ *
+ * @param {object} result - Transformed custom-rule result.
+ * @returns {HTMLLIElement} Rendered rule result listing.
+ */
+const createCustomRuleListing = (result) => {
+  const listing = createHtmlElement("li", "log-listing");
+  const header = createHtmlElement("div", "log-folded-header");
+  const primaryRow = createHtmlElement("div", "log-primary-row");
+  const secondaryRow = createHtmlElement("div", "log-secondary-row");
+  const arrowIcon = createArrowSvg();
+  const rawMessage = createHtmlElement("pre", "log-raw", result.raw || "");
+
+  rawMessage.style.display = "none";
+  arrowIcon.classList.add("category-toggle");
+  arrowIcon.style.transform = "rotate(-90deg)";
+
+  primaryRow.append(
+    createHtmlElement("span", "log-timestamp", result.timestamp || "No time"),
+    createHtmlElement("span", "log-category-chip", result.category || "unknown")
+  );
+
+  if (result.resultLabel) {
+    primaryRow.append(createHtmlElement("span", "log-min-max-label", result.resultLabel));
+  }
+
+  primaryRow.append(createHtmlElement("span", "log-summary", result.title || "No result"));
+
+  if (result.subtitle) {
+    secondaryRow.append(createHtmlElement("span", "log-variable-suffix", result.subtitle));
+  }
+
+  if (result.logger) {
+    secondaryRow.append(createHtmlElement("span", "log-logger", result.logger));
+  }
+
+  if (result.thread) {
+    secondaryRow.append(createHtmlElement("span", "log-thread", result.thread));
+  }
+
+  if (result.lineStart && result.lineEnd) {
+    const lineLabel =
+      result.lineStart === result.lineEnd
+        ? `line ${result.lineStart}`
+        : `lines ${result.lineStart}-${result.lineEnd}`;
+    secondaryRow.append(createHtmlElement("span", "log-line-range", lineLabel));
+  }
+
+  header.append(primaryRow, arrowIcon);
+  listing.append(header, secondaryRow, rawMessage);
+
+  const toggleListing = () => {
+    const isHidden = rawMessage.style.display === "none";
+    rawMessage.style.display = isHidden ? "block" : "none";
+    arrowIcon.style.transform = isHidden ? "rotate(0deg)" : "rotate(-90deg)";
+  };
+
+  header.style.cursor = "pointer";
+  header.addEventListener("click", toggleListing);
 
   return listing;
 };

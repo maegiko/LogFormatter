@@ -19,7 +19,59 @@
       <div class="format-buttons">
         <button id="group-by-category">Group by Category</button>
         <button id="fold-repeated-lines">Fold Repeated Lines</button>
+        <button id="custom-display-rules">Custom Display Rules</button>
       </div>
+      <section id="custom-rules-panel" class="custom-rules-panel" hidden>
+        <h2>Custom Display Rules</h2>
+        <p class="custom-rules-description">
+          Pick what you want to do first, then fill in only the fields needed for
+          that rule.
+        </p>
+        <div class="custom-rules-steps">
+          <span class="custom-rules-step">1. Choose a rule type</span>
+          <span class="custom-rules-step">2. Enter the text to look for</span>
+          <span class="custom-rules-step">3. Apply the rule</span>
+        </div>
+        <div class="custom-rules-grid">
+          <label class="custom-rule-field custom-rule-field-full">
+            <span>What would you like to do?</span>
+            <select id="rule-action">
+              <option value="trim-before">Hide everything before a keyword</option>
+              <option value="show-min-max">Show only the lowest and highest values</option>
+            </select>
+          </label>
+          <p id="custom-rule-action-help" class="custom-rule-help custom-rule-field-full">
+            Keep the important part of a matching line by trimming away the prefix before a keyword.
+          </p>
+          <label class="custom-rule-field custom-rule-field-full">
+            <span>Only apply this to lines containing</span>
+            <input
+              id="rule-match-value"
+              type="text"
+              placeholder="e.g. [STDOUT]: or getHeight:"
+            />
+          </label>
+          <label class="custom-rule-field" id="rule-keyword-field">
+            <span>Trim from this keyword</span>
+            <input
+              id="rule-action-value"
+              type="text"
+              placeholder="e.g. [STDOUT]:"
+            />
+          </label>
+          <label class="custom-rule-field" id="rule-number-index-field" hidden>
+            <span>Which number should be compared?</span>
+            <select id="rule-number-index">
+              <option value="0">Use the first number in each line</option>
+              <option value="1">Use the second number in each line</option>
+              <option value="2">Use the third number in each line</option>
+            </select>
+          </label>
+        </div>
+        <div class="custom-rules-actions">
+          <button id="apply-custom-rule" type="button">Apply This Rule</button>
+        </div>
+      </section>
       <p id="no-file-uploaded-text">No file uploaded. Please try again.</p>
       <div class="content-container"></div>
     </div>
