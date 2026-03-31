@@ -21,6 +21,24 @@
         <button id="fold-repeated-lines">Fold Repeated Lines</button>
         <button id="custom-display-rules">Custom Display Rules</button>
       </div>
+      <section id="fold-options-panel" class="custom-rules-panel" hidden>
+        <h2>Fold Repeated Lines</h2>
+        <p class="custom-rules-description">
+          Optionally choose which categories should be folded. If you leave
+          everything unchecked, repeated lines will be folded across all categories.
+        </p>
+        <div class="custom-rules-steps">
+          <span class="custom-rules-step">1. Choose categories to fold</span>
+          <span class="custom-rules-step">2. Leave blank to fold everything</span>
+          <span class="custom-rules-step">3. Apply folding</span>
+        </div>
+        <div id="fold-category-options" class="fold-category-options">
+          <p class="custom-rule-help">Upload a log file, then open this panel to choose categories.</p>
+        </div>
+        <div class="custom-rules-actions">
+          <button id="apply-fold-repeated-lines" type="button">Apply Folding</button>
+        </div>
+      </section>
       <section id="custom-rules-panel" class="custom-rules-panel" hidden>
         <h2>Custom Display Rules</h2>
         <p class="custom-rules-description">

@@ -804,6 +804,8 @@ function parseNumericList(text) {
 
 const scrollToTopButton = document.getElementById("scroll-to-top-button");
 const customRulesPanel = document.getElementById("custom-rules-panel");
+const foldOptionsPanel = document.getElementById("fold-options-panel");
+const foldCategoryOptions = document.getElementById("fold-category-options");
 const ruleActionSelect = document.getElementById("rule-action");
 const ruleKeywordField = document.getElementById("rule-keyword-field");
 const ruleNumberIndexField = document.getElementById("rule-number-index-field");
@@ -817,6 +819,15 @@ const customRuleActionHelp = document.getElementById("custom-rule-action-help");
 const hideCustomRulesPanel = () => {
   customRulesPanel.setAttribute("hidden", "");
 };
+
+/**
+ * Hide the fold repeated-lines options panel.
+ *
+ * @returns {void}
+ */
+const hideFoldOptionsPanel = () => {
+  foldOptionsPanel.setAttribute("hidden", "");
+};
 const ruleMatchValueInput = document.getElementById("rule-match-value");
 const ruleActionValueInput = document.getElementById("rule-action-value");
 const ruleNumberIndexSelect = document.getElementById("rule-number-index");
@@ -828,6 +839,7 @@ const ruleNumberIndexSelect = document.getElementById("rule-number-index");
  */
 document.getElementById("group-by-category").addEventListener("click", async () => {
   hideCustomRulesPanel();
+  hideFoldOptionsPanel();
   const parsedLogs = await loadSelectedLogFile();
   if (!parsedLogs) {
     return;
@@ -844,13 +856,20 @@ document.getElementById("group-by-category").addEventListener("click", async () 
  */
 document.getElementById("fold-repeated-lines").addEventListener("click", async () => {
   hideCustomRulesPanel();
+  const isHidden = foldOptionsPanel.hasAttribute("hidden");
+
+  if (!isHidden) {
+    hideFoldOptionsPanel();
+    return;
+  }
+
   const parsedLogs = await loadSelectedLogFile();
   if (!parsedLogs) {
     return;
   }
 
-  const foldedLogs = foldRepeatedLogs(parsedLogs);
-  createFoldedDisplay(foldedLogs);
+  populateFoldCategoryOptions(parsedLogs);
+  foldOptionsPanel.removeAttribute("hidden");
 });
 
 /**
@@ -859,6 +878,7 @@ document.getElementById("fold-repeated-lines").addEventListener("click", async (
  * @returns {void}
  */
 document.getElementById("custom-display-rules").addEventListener("click", () => {
+  hideFoldOptionsPanel();
   const isHidden = customRulesPanel.hasAttribute("hidden");
 
   if (isHidden) {
@@ -868,6 +888,22 @@ document.getElementById("custom-display-rules").addEventListener("click", () => 
   }
 
   hideCustomRulesPanel();
+});
+
+/**
+ * Apply repeated-line folding using the selected category filters.
+ *
+ * @returns {void}
+ */
+document.getElementById("apply-fold-repeated-lines").addEventListener("click", async () => {
+  const parsedLogs = await loadSelectedLogFile();
+  if (!parsedLogs) {
+    return;
+  }
+
+  const selectedCategories = getSelectedFoldCategories();
+  const foldedLogs = foldRepeatedLogs(parsedLogs, selectedCategories);
+  createFoldedDisplay(foldedLogs, selectedCategories);
 });
 
 /**
@@ -895,6 +931,46 @@ const updateCustomRuleFields = () => {
   customRuleActionHelp.textContent =
     "From matching lines, keep only the entry with the lowest value and the entry with the highest value.";
   ruleMatchValueInput.placeholder = "e.g. getHeight:";
+};
+
+/**
+ * Populate the fold options panel with available parsed categories.
+ *
+ * @param {object[]} parsedLogs - Parsed log entries.
+ * @returns {void}
+ */
+const populateFoldCategoryOptions = (parsedLogs) => {
+  const categories = [...new Set(parsedLogs.map((log) => log.category).filter(Boolean))].sort();
+  foldCategoryOptions.textContent = "";
+
+  if (categories.length === 0) {
+    foldCategoryOptions.append(
+      createHtmlElement("p", "custom-rule-help", "No categories were found in this log.")
+    );
+    return;
+  }
+
+  categories.forEach((category) => {
+    const label = createHtmlElement("label", "fold-category-option");
+    const checkbox = createHtmlElement("input");
+    const text = createHtmlElement("span", "", category);
+
+    checkbox.type = "checkbox";
+    checkbox.value = category;
+
+    label.append(checkbox, text);
+    foldCategoryOptions.append(label);
+  });
+};
+
+/**
+ * Read the currently selected fold categories from the fold options panel.
+ *
+ * @returns {string[]} Selected categories.
+ */
+const getSelectedFoldCategories = () => {
+  const checkedInputs = foldCategoryOptions.querySelectorAll('input[type="checkbox"]:checked');
+  return [...checkedInputs].map((input) => input.value);
 };
 
 /**
@@ -1284,18 +1360,28 @@ const formatCustomRuleTitle = (rule) => {
  * Fold consecutive repeated logs using their stable fold key.
  *
  * @param {object[]} logs - Parsed log entries.
+ * @param {string[]} [selectedCategories=[]] - Categories to include in folding. Empty means all categories.
  * @returns {object[]} Folded log groups in original order.
  */
-const foldRepeatedLogs = (logs) => {
+const foldRepeatedLogs = (logs, selectedCategories = []) => {
   if (logs.length === 0) {
     return [];
   }
 
-  const foldedGroups = [];
-  let currentGroup = createFoldGroup(logs[0]);
+  const shouldFilterByCategory = selectedCategories.length > 0;
+  const logsToFold = shouldFilterByCategory
+    ? logs.filter((log) => selectedCategories.includes(log.category))
+    : logs;
 
-  for (let index = 1; index < logs.length; index += 1) {
-    const log = logs[index];
+  if (logsToFold.length === 0) {
+    return [];
+  }
+
+  const foldedGroups = [];
+  let currentGroup = createFoldGroup(logsToFold[0]);
+
+  for (let index = 1; index < logsToFold.length; index += 1) {
+    const log = logsToFold[index];
 
     if (log.fold?.key === currentGroup.foldKey) {
       currentGroup.logs.push(log);
@@ -1341,17 +1427,22 @@ const createFoldGroup = (log) => {
  * Render folded repeated-line groups.
  *
  * @param {object[]} foldedLogs - Folded repeated-line groups.
+ * @param {string[]} [selectedCategories=[]] - Categories included in the fold operation.
  * @returns {void}
  */
-const createFoldedDisplay = (foldedLogs) => {
+const createFoldedDisplay = (foldedLogs, selectedCategories = []) => {
   const display = document.querySelector(".content-container");
   display.textContent = "";
 
+  const categoryScope =
+    selectedCategories.length > 0
+      ? ` (${selectedCategories.join(", ")})`
+      : " (all categories)";
   const section = createHtmlElement("section", "log-container");
   const header = createHtmlElement(
     "div",
     "category-container",
-    `Folded repeated lines: ${foldedLogs.length} groups`
+    `Folded repeated lines: ${foldedLogs.length} groups${categoryScope}`
   );
   const listings = createHtmlElement("ul", "listing-container");
 

@@ -209,6 +209,40 @@ p {
   margin-top: 18px;
 }
 
+.fold-category-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 16px;
+}
+
+.fold-category-option {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  padding: 10px 12px;
+  border: 1px solid rgba(89, 62, 35, 0.1);
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--text);
+  cursor: pointer;
+  line-height: 1;
+}
+
+.fold-category-option input {
+  margin: 0;
+  width: 16px;
+  height: 16px;
+  flex: 0 0 auto;
+}
+
+.fold-category-option span {
+  display: inline-flex;
+  align-items: center;
+  line-height: 1.1;
+}
+
 .custom-rule-help {
   margin: 0;
   padding: 12px 14px;
@@ -581,6 +615,10 @@ p {
 
   .custom-rules-actions button {
     width: 100%;
+  }
+
+  .fold-category-options {
+    flex-direction: column;
   }
 
   .built-by-text {
