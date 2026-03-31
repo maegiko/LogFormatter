@@ -808,6 +808,15 @@ const ruleActionSelect = document.getElementById("rule-action");
 const ruleKeywordField = document.getElementById("rule-keyword-field");
 const ruleNumberIndexField = document.getElementById("rule-number-index-field");
 const customRuleActionHelp = document.getElementById("custom-rule-action-help");
+
+/**
+ * Hide the custom display rules panel.
+ *
+ * @returns {void}
+ */
+const hideCustomRulesPanel = () => {
+  customRulesPanel.setAttribute("hidden", "");
+};
 const ruleMatchValueInput = document.getElementById("rule-match-value");
 const ruleActionValueInput = document.getElementById("rule-action-value");
 const ruleNumberIndexSelect = document.getElementById("rule-number-index");
@@ -818,6 +827,7 @@ const ruleNumberIndexSelect = document.getElementById("rule-number-index");
  * @returns {void}
  */
 document.getElementById("group-by-category").addEventListener("click", async () => {
+  hideCustomRulesPanel();
   const parsedLogs = await loadSelectedLogFile();
   if (!parsedLogs) {
     return;
@@ -833,6 +843,7 @@ document.getElementById("group-by-category").addEventListener("click", async () 
  * @returns {void}
  */
 document.getElementById("fold-repeated-lines").addEventListener("click", async () => {
+  hideCustomRulesPanel();
   const parsedLogs = await loadSelectedLogFile();
   if (!parsedLogs) {
     return;
@@ -856,7 +867,7 @@ document.getElementById("custom-display-rules").addEventListener("click", () => 
     return;
   }
 
-  customRulesPanel.setAttribute("hidden", "");
+  hideCustomRulesPanel();
 });
 
 /**
